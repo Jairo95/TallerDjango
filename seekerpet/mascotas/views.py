@@ -1,0 +1,66 @@
+from django.http.response import JsonResponse
+from django.shortcuts import render
+from django.views import generic
+from django.urls import reverse_lazy
+from seekerpet.mascotas import models
+from seekerpet.mascotas import forms
+
+class MascotasList(generic.ListView):
+    template_name = 'mascotas/mascotas.html'
+    model = models.Mascota
+
+    def get_queryset(self):
+        return models.Mascota.mostrar_mascotas_perdida()
+
+
+class MascotaCreate(generic.CreateView):
+    template_name = 'mascotas/formulario_mascota.html'
+    form_class = forms.MascotaForm
+
+    def get_success_url(self):
+        return reverse_lazy('mascotas:listade_mascotas')
+
+    def form_valid(self, form):
+        mascota = form.save(commit=False)
+        print('[FILES]: ', self.request.FILES)
+        mascota.propietario = self.request.user
+        return super().form_valid(form)
+
+
+class MascotaUpdate(generic.UpdateView):
+    template_name = 'mascotas/formulario_mascota.html'
+    form_class = forms.MascotaForm
+    model = models.Mascota
+
+    def get_success_url(self):
+        return reverse_lazy('mascotas:listade_mascotas')
+
+    def form_valid(self, form):
+        mascota = form.save(commit=False)
+        print('[FILES]: ', self.request.FILES)
+        return super().form_valid(form)
+
+
+class MascotaDetail(generic.DetailView):
+    template_name = 'mascotas/detallede_mascota.html'
+    model = models.Mascota
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['sigue_perdida'] = ctx.get('mascota').esta_perdida
+        return ctx
+
+
+def info_mascota(request, pk):
+    template_name = 'mascotas/include/info_mascota.html'
+    context = dict()
+    mascota = models.Mascota.objects.get(pk=pk)
+    context.update(mascota.informacionde_propietario())
+    return render(request, template_name, context)
+
+
+def mascota_encontrada(request, pk):
+    mascota = models.Mascota.objects.get(pk=pk)
+    mascota.marcar_mascota_encontrada()
+    mascota.save()
+    return JsonResponse(dict(status='ok'))
